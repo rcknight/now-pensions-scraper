@@ -6,7 +6,7 @@ Usage:
 Install all dependencies
 
 ```
-npm insall
+npm install
 ```
 
 Run the scraper
