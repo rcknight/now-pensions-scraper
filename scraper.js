@@ -2,6 +2,8 @@ var cheerio = require('cheerio');
 var request = require('request');
 var args = require('command-line-args');
 var usage = require('command-line-usage');
+var moment = require('moment');
+var GoogleSpreadsheet = require('google-spreadsheet');
 
 var baseUrl = 'https://ae.nowpensions.com/';
 
@@ -28,6 +30,26 @@ var optionDefinitions = [
         description: 'Your Now Pensions account password.'
     },
     {
+        name: 'save',
+        alias: 's',
+        type: String,
+        typeLabel: '[underline]{sheet id}',
+        description: 'Publish results to this google spreadsheet. Sheet must have columns named "Recorded", "Effective Date", and "Fund Value".'
+    },
+    {
+        name: 'key',
+        alias: 'k',
+        type: String,
+        typeLabel: '[underline]{fileName}',
+        description: 'The JSON auth key for your google API service account'
+    },
+    {
+        name: 'verbose',
+        alias: 'v',
+        type: Boolean,
+        description: 'Display additional progress information'
+    },
+    {
         name: 'help',
         alias: 'h',
         type: Boolean, 
@@ -49,7 +71,7 @@ var sections = [
 var options = args(optionDefinitions);
 var usage = usage(sections);
 
-if(options.help || !options.organisation || !options.username || !options.password ) {
+if(options.help || !options.organisation || !options.username || !options.password || (options.save && !options.key)) {
     console.log(usage);
     process.exit();
 }
@@ -63,12 +85,15 @@ request = request.defaults({
 getLoginPage();
 
 function getLoginPage() {
+    if(options.verbose) { console.log('Requesting login page'); }
     request.get('/Login.aspx', scrapeLoginPage);
 }
 
 function scrapeLoginPage(error, response, body) {
     if(error)
         throw error;
+
+    if(options.verbose) { console.log('Processing login page'); }
 
     var $ = cheerio.load(body);
 
@@ -96,16 +121,16 @@ function scrapeLoginPage(error, response, body) {
         }
     });
 
-    login(formData);
-}
+    if(options.verbose) { console.log('Logging in'); }
 
-function login(data) {
-    request.post('/Login.aspx', { form: data }, scrapeHomePage);
+    request.post('/Login.aspx', { form: formData }, scrapeHomePage);
 }
 
 function scrapeHomePage(error, response, body) {
     if(error)
         throw error;
+
+    if(options.verbose) { console.log('Logged in, processing home page'); }
 
     var $ = cheerio.load(body);
 
@@ -115,7 +140,9 @@ function scrapeHomePage(error, response, body) {
             href=$(this).attr('href').replace('/' + options.organisation, '');
         }
     });
-    
+
+    if(options.verbose) { console.log('Requesting pensions details page'); }
+
     request.get(href, scrapeDetailsPage);
 }
 
@@ -123,15 +150,52 @@ function scrapeDetailsPage(error, response, body) {
     if(error)
         throw error;
 
+    if(options.verbose) { console.log('Processing pension details page'); }
+
     var $ = cheerio.load(body);
 
     var fundValue = '';
+
+    var effectiveDate = '';
+
     $('h3').each(function() {
         var h3 = $(this);
 
         if(h3.html().indexOf('&#xA3;') === 0)
-            fundValue = h3.html().replace('&#xA3;', '');
+            fundValue = h3.html().replace('&#xA3;', '').replace(',','');
+
+        if(h3.html().indexOf('Effective as at:' === 0))
+            effectiveDate = h3.html().replace('Effective as at: ', '');
     });
 
-    console.log(fundValue.replace(',',''));
+    if(options.verbose) { console.log('Fund value found: '); }
+
+    console.log(effectiveDate + ': ' + fundValue);
+
+    if(options.save) {
+        publishToGoogleSheets(fundValue, effectiveDate);
+    }
+}
+
+function publishToGoogleSheets(value, effectiveDate) {
+    var doc = new GoogleSpreadsheet(options.save);
+    var sheet;
+    var creds = require(options.key);
+    doc.useServiceAccountAuth(creds, function(error) {
+        if(error)
+            throw error;
+        
+        doc.getInfo(function(error, info) {
+            if(error)
+                throw error;
+
+            doc.addRow(1, { 'Recorded': moment().format('DD/MM/YYYY HH:mm'), 'Effective Date': effectiveDate, 'Fund Value': value }, function(error, info) {
+                if(error)
+                    throw error;
+
+                console.log('Successfully published to: ' + info.title);
+            });
+        });
+
+    });
 }

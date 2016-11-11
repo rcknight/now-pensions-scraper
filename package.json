@@ -3,8 +3,7 @@
   "version": "1.0.0",
   "description": "A tool to log in to now pensions and get your fund value",
   "main": "scraper.js",
-  "scripts": {
-  },
+  "scripts": {},
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rcknight/now-pensions-scraper.git"
@@ -19,6 +18,8 @@
     "cheerio": "^0.22.0",
     "command-line-args": "^3.0.3",
     "command-line-usage": "^3.0.7",
+    "google-spreadsheet": "^2.0.3",
+    "moment": "^2.16.0",
     "request": "^2.78.0"
   }
 }
