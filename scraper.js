@@ -34,7 +34,7 @@ var optionDefinitions = [
         alias: 's',
         type: String,
         typeLabel: '[underline]{sheet id}',
-        description: 'Publish results to this google spreadsheet. Sheet must have columns named "Recorded", "Effective Date", and "Fund Value".'
+        description: 'Publish results to this google spreadsheet. Sheet must have columns named "Recorded", "Effective Date", "Fund Value" and "Source".'
     },
     {
         name: 'key',
@@ -189,7 +189,7 @@ function publishToGoogleSheets(value, effectiveDate) {
             if(error)
                 throw error;
 
-            doc.addRow(1, { 'Recorded': moment().format('DD/MM/YYYY HH:mm'), 'Effective Date': effectiveDate, 'Fund Value': value }, function(error, info) {
+            doc.addRow(1, { 'Recorded': moment().format('DD/MM/YYYY HH:mm'), 'Effective Date': effectiveDate, 'Fund Value': value, 'Source': 'Website' }, function(error, info) {
                 if(error)
                     throw error;
 
