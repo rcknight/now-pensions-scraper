@@ -30,18 +30,11 @@ var optionDefinitions = [
         description: 'Your Now Pensions account password.'
     },
     {
-        name: 'save',
+        name: 'slackUrl',
         alias: 's',
         type: String,
-        typeLabel: '[underline]{sheet id}',
-        description: 'Publish results to this google spreadsheet. Sheet must have columns named "Recorded", "Effective Date", "Fund Value" and "Source".'
-    },
-    {
-        name: 'key',
-        alias: 'k',
-        type: String,
-        typeLabel: '[underline]{fileName}',
-        description: 'The JSON auth key for your google API service account'
+        typeLabel: '[underline]{slackUrl}',
+        description: 'Slack webhook url'
     },
     {
         name: 'verbose',
@@ -172,9 +165,23 @@ function scrapeDetailsPage(error, response, body) {
 
     console.log(effectiveDate + ': ' + fundValue);
 
-    if(options.save) {
-        publishToGoogleSheets(fundValue, effectiveDate);
-    }
+    if(options.slackUrl)
+        publishToSlack(effectiveDate);
+}
+
+function publishToSlack(effectiveDate) {
+    var r = require('request');
+    var message = {
+        'text': 'Now pensions last updated: ' + effectiveDate
+    };
+    var url = options.slackUrl;
+    r.post(url, { json: message }, function (error, response, body) {
+        if(!error && response.statusCode == 200) {
+            console.log('Successfully published to slack');
+        } else {
+            console.log('Publishing to slack failed', response && response.statusCode, error);
+        }
+    });
 }
 
 function publishToGoogleSheets(value, effectiveDate) {
